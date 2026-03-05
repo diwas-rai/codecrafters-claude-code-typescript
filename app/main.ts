@@ -21,6 +21,25 @@ async function main() {
   const response = await client.chat.completions.create({
     model: "anthropic/claude-haiku-4.5",
     messages: [{ role: "user", content: prompt }],
+    tools: [
+      {
+        type: "function",
+        function: {
+          name: "Read",
+          description: "Read and return the contents of a file",
+          parameters: {
+            type: "object",
+            properties: {
+              file_path: {
+                type: "string",
+                description: "The path to the file to read",
+              },
+            },
+            required: ["file_path"],
+          },
+        },
+      },
+    ],
   });
 
   if (!response.choices || response.choices.length === 0) {
@@ -30,7 +49,6 @@ async function main() {
   // You can use print statements as follows for debugging, they'll be visible when running tests.
   console.error("Logs from your program will appear here!");
 
-  // TODO: Uncomment the lines below to pass the first stage
   console.log(response.choices[0].message.content);
 }
 
