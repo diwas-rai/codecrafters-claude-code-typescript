@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import * as fs from 'fs';
 
 async function main() {
   const [, , flag, prompt] = process.argv;
@@ -46,10 +47,25 @@ async function main() {
     throw new Error("no choices in response");
   }
 
+  const toolCalls = response.choices[0].message.tool_calls;
+  if (!toolCalls || toolCalls.length === 0) {
+    console.log(response.choices[0].message.content);
+    return;
+  }
+
+  const toolCall = toolCalls[0];
+  if (toolCall.type = "function") {
+    const functionName = toolCall.function.name;
+    const functionArgs = JSON.parse(toolCall.function.arguments);
+
+    const filePath = functionArgs.file_path;
+    const content = fs.readFileSync(filePath, 'utf8');
+    console.log(content)
+  }
+
   // You can use print statements as follows for debugging, they'll be visible when running tests.
   console.error("Logs from your program will appear here!");
 
-  console.log(response.choices[0].message.content);
 }
 
 main();
