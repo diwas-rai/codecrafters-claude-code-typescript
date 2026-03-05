@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import * as fs from 'fs';
+import * as fs from "fs";
 
 async function main() {
   const [, , flag, prompt] = process.argv;
@@ -19,53 +19,61 @@ async function main() {
     baseURL: baseURL,
   });
 
-  const response = await client.chat.completions.create({
-    model: "anthropic/claude-haiku-4.5",
-    messages: [{ role: "user", content: prompt }],
-    tools: [
-      {
-        type: "function",
-        function: {
-          name: "Read",
-          description: "Read and return the contents of a file",
-          parameters: {
-            type: "object",
-            properties: {
-              file_path: {
-                type: "string",
-                description: "The path to the file to read",
+  let messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "user", content: prompt },
+  ];
+
+  while (true) {
+    const response = await client.chat.completions.create({
+      model: "anthropic/claude-haiku-4.5",
+      messages: messages,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "Read",
+            description: "Read and return the contents of a file",
+            parameters: {
+              type: "object",
+              properties: {
+                file_path: {
+                  type: "string",
+                  description: "The path to the file to read",
+                },
               },
+              required: ["file_path"],
             },
-            required: ["file_path"],
           },
         },
-      },
-    ],
-  });
+      ],
+    });
 
-  if (!response.choices || response.choices.length === 0) {
-    throw new Error("no choices in response");
+    if (!response.choices || response.choices.length === 0) {
+      throw new Error("no choices in response");
+    }
+
+    messages.push(response.choices[0].message);
+    const toolCalls = response.choices[0].message.tool_calls;
+    if (!toolCalls || toolCalls.length === 0) {
+      console.log(response.choices[0].message.content);
+      return;
+    }
+
+    for (const toolCall of toolCalls) {
+      if (toolCall.type === "function") {
+        const functionName = toolCall.function.name;
+        const functionArgs = JSON.parse(toolCall.function.arguments);
+
+        const filePath = functionArgs.file_path;
+        const content = fs.readFileSync(filePath, "utf8");
+        messages.push({
+          role: "tool",
+          tool_call_id: toolCall.id,
+          content: content,
+        });
+      }
+    }
   }
-
-  const toolCalls = response.choices[0].message.tool_calls;
-  if (!toolCalls || toolCalls.length === 0) {
-    console.log(response.choices[0].message.content);
-    return;
-  }
-
-  const toolCall = toolCalls[0];
-  if (toolCall.type = "function") {
-    const functionName = toolCall.function.name;
-    const functionArgs = JSON.parse(toolCall.function.arguments);
-
-    const filePath = functionArgs.file_path;
-    const content = fs.readFileSync(filePath, 'utf8');
-    console.log(content)
-  }
-
-  // You can use print statements as follows for debugging, they'll be visible when running tests.
-  console.error("Logs from your program will appear here!");
-
 }
 
 main();
