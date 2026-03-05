@@ -45,6 +45,27 @@ async function main() {
             },
           },
         },
+        {
+          type: "function",
+          function: {
+            name: "Write",
+            description: "Write content to a file",
+            parameters: {
+              type: "object",
+              properties: {
+                file_path: {
+                  type: "string",
+                  description: "The path to the file to write to",
+                },
+                content: {
+                  type: "string",
+                  description: "The content to write to the file",
+                },
+              },
+              required: ["file_path", "content"],
+            },
+          },
+        },
       ],
     });
 
@@ -64,13 +85,30 @@ async function main() {
         const functionName = toolCall.function.name;
         const functionArgs = JSON.parse(toolCall.function.arguments);
 
-        const filePath = functionArgs.file_path;
-        const content = fs.readFileSync(filePath, "utf8");
-        messages.push({
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: content,
-        });
+        switch (functionName) {
+          case "Read": {
+            const filePath = functionArgs.file_path;
+            const content = fs.readFileSync(filePath, "utf8");
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: content,
+            });
+            break;
+          }
+          case "Write":
+            const filePath = functionArgs.file_path;
+            const content = functionArgs.content;
+            fs.writeFileSync(filePath, content);
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: content,
+            });
+            break;
+          default:
+            break;
+        }
       }
     }
   }
