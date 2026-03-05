@@ -1,5 +1,7 @@
 import OpenAI from "openai";
 import * as fs from "fs";
+import { ExecException, execSync } from "child_process";
+import { stdout } from "process";
 
 async function main() {
   const [, , flag, prompt] = process.argv;
@@ -66,6 +68,22 @@ async function main() {
             },
           },
         },
+        {
+          type: "function",
+          function: {
+            name: "Bash",
+            description: "Execute a shell command",
+            parameters: {
+              type: "object",
+              properties: {
+                command: {
+                  type: "string",
+                  description: "The command to execute",
+                },
+              },
+            },
+          },
+        },
       ],
     });
 
@@ -96,7 +114,7 @@ async function main() {
             });
             break;
           }
-          case "Write":
+          case "Write": {
             const filePath = functionArgs.file_path;
             const content = functionArgs.content;
             fs.writeFileSync(filePath, content);
@@ -106,6 +124,25 @@ async function main() {
               content: content,
             });
             break;
+          }
+          case "Bash": {
+            const command = functionArgs.command;
+            let output = "";
+
+            try {
+              output = execSync(command).toString();
+            } catch (error) {
+              const err = error as Error & { stderr?: Buffer | string };
+              output = err.stderr ? err.stderr.toString() : err.message;
+            }
+
+            messages.push({
+              role: "tool",
+              tool_call_id: toolCall.id,
+              content: output,
+            });
+            break;
+          }
           default:
             break;
         }
